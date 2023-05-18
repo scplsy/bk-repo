@@ -35,6 +35,8 @@ import com.tencent.bkrepo.common.api.exception.ErrorCodeException
 import com.tencent.bkrepo.common.artifact.api.ArtifactInfo
 import com.tencent.bkrepo.common.artifact.message.ArtifactMessageCode
 import com.tencent.bkrepo.common.artifact.path.PathUtils.isRoot
+import com.tencent.bkrepo.common.artifact.path.PathUtils.resolveParent
+import com.tencent.bkrepo.common.artifact.path.PathUtils.toFullPath
 import com.tencent.bkrepo.common.security.util.SecurityUtils
 import com.tencent.bkrepo.repository.dao.NodeDao
 import com.tencent.bkrepo.repository.model.TNode
@@ -64,7 +66,7 @@ import java.time.ZoneId
  * 节点统计接口实现
  */
 open class NodeRestoreSupport(
-    nodeBaseService: NodeBaseService
+    val nodeBaseService: NodeBaseService
 ) : NodeRestoreOperation {
 
     val nodeDao: NodeDao = nodeBaseService.nodeDao
@@ -158,6 +160,7 @@ open class NodeRestoreSupport(
             }
             val query = nodeDeletedPointQuery(projectId, repoName, fullPath, deletedTime)
             restoreCount += nodeDao.updateFirst(query, nodeRestoreUpdate()).modifiedCount
+            nodeBaseService.updateModifiedInfo(projectId, repoName, toFullPath(resolveParent(fullPath)), operator)
         }
     }
 

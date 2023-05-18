@@ -100,6 +100,9 @@ open class NodeRenameSupport(
             val selfUpdate = NodeQueryHelper.nodePathUpdate(newPath, newName, operator)
             nodeDao.updateFirst(selfQuery, selfUpdate)
         }
+        // 更新父目录的最后修改信息
+        val parentFullPath = PathUtils.toFullPath(PathUtils.resolveParent(node.fullPath))
+        nodeBaseService.updateModifiedInfo(projectId, repoName, parentFullPath, operator)
     }
 
     companion object {

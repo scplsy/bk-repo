@@ -34,6 +34,7 @@ package com.tencent.bkrepo.repository.service.metadata.impl
 import com.tencent.bkrepo.common.api.exception.ErrorCodeException
 import com.tencent.bkrepo.common.artifact.exception.NodeNotFoundException
 import com.tencent.bkrepo.common.artifact.message.ArtifactMessageCode
+import com.tencent.bkrepo.common.artifact.path.PathUtils
 import com.tencent.bkrepo.common.artifact.path.PathUtils.normalizeFullPath
 import com.tencent.bkrepo.common.artifact.util.ClusterUtils
 import com.tencent.bkrepo.common.security.exception.PermissionException
@@ -45,6 +46,7 @@ import com.tencent.bkrepo.repository.model.TNode
 import com.tencent.bkrepo.repository.pojo.metadata.MetadataDeleteRequest
 import com.tencent.bkrepo.repository.pojo.metadata.MetadataSaveRequest
 import com.tencent.bkrepo.repository.service.metadata.MetadataService
+import com.tencent.bkrepo.repository.service.node.impl.NodeBaseService
 import com.tencent.bkrepo.repository.util.MetadataUtils
 import com.tencent.bkrepo.repository.util.NodeEventFactory.buildMetadataDeletedEvent
 import com.tencent.bkrepo.repository.util.NodeEventFactory.buildMetadataSavedEvent
@@ -57,6 +59,7 @@ import org.springframework.data.mongodb.core.query.inValues
 import org.springframework.data.mongodb.core.query.where
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 
 /**
  * 元数据服务实现类
@@ -65,6 +68,7 @@ import org.springframework.transaction.annotation.Transactional
 @Conditional(DefaultCondition::class)
 class MetadataServiceImpl(
     private val nodeDao: NodeDao,
+    private val nodeBaseService: NodeBaseService
 ) : MetadataService {
 
     override fun listMetadata(projectId: String, repoName: String, fullPath: String): Map<String, Any> {
@@ -86,7 +90,13 @@ class MetadataServiceImpl(
             val newMetadata = MetadataUtils.compatibleConvertAndCheck(metadata, nodeMetadata)
             node.metadata = MetadataUtils.merge(oldMetadata, newMetadata)
 
+            val currentTime = LocalDateTime.now()
+            node.lastModifiedBy = operator
+            node.lastModifiedDate = currentTime
             nodeDao.save(node)
+            // 更新父目录的修改时间
+            val parentFullPath = PathUtils.toFullPath(PathUtils.resolveParent(fullPath))
+            nodeBaseService.updateModifiedInfo(projectId, repoName, parentFullPath, operator, currentTime)
             publishEvent(buildMetadataSavedEvent(request))
             logger.info("Save metadata[$newMetadata] on node[/$projectId/$repoName$fullPath] success.")
         }
@@ -123,11 +133,15 @@ class MetadataServiceImpl(
                 }
             }
 
+            val currentTime = LocalDateTime.now()
             val update = Update().pull(
                 TNode::metadata.name,
                 Query.query(where(TMetadata::key).inValues(keyList))
-            )
+            ).set(TNode::lastModifiedDate.name, currentTime).set(TNode::lastModifiedBy.name, operator)
             nodeDao.updateMulti(query, update)
+            // 更新父目录的修改时间
+            val parentFullPath = PathUtils.toFullPath(PathUtils.resolveParent(fullPath))
+            nodeBaseService.updateModifiedInfo(projectId, repoName, parentFullPath, operator, currentTime)
             publishEvent(buildMetadataDeletedEvent(this))
             logger.info("Delete metadata[$keyList] on node[/$projectId/$repoName$fullPath] success.")
         }

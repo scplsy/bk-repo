@@ -29,6 +29,7 @@ package com.tencent.bkrepo.repository.service.node.impl.center
 
 import com.tencent.bkrepo.common.api.exception.ErrorCodeException
 import com.tencent.bkrepo.common.artifact.message.ArtifactMessageCode
+import com.tencent.bkrepo.common.artifact.path.PathUtils
 import com.tencent.bkrepo.common.artifact.util.ClusterUtils
 import com.tencent.bkrepo.repository.model.TNode
 import com.tencent.bkrepo.repository.pojo.node.ConflictStrategy
@@ -67,5 +68,7 @@ class CommitEdgeCenterNodeRestoreSupport(
             deleted = context.deletedTime
         )
         context.restoreCount += nodeDao.updateFirst(query, NodeQueryHelper.nodeRestoreUpdate()).modifiedCount
+        val parentFullPath = PathUtils.toFullPath(PathUtils.resolveParent(fullPath))
+        nodeBaseService.updateModifiedInfo(context.projectId, context.repoName, parentFullPath, context.operator)
     }
 }

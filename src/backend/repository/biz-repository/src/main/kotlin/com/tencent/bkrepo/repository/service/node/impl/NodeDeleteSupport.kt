@@ -134,6 +134,9 @@ open class NodeDeleteSupport(
             deletedNum = updateResult.modifiedCount
             deletedSize = nodeBaseService.aggregateComputeSize(criteria.and(TNode::deleted).isEqualTo(deleteTime))
             quotaService.decreaseUsedVolume(projectId, repoName, deletedSize)
+            // 更新父目录的修改信息
+            val parentFullPath = PathUtils.toFullPath(PathUtils.resolveParent(fullPath))
+            nodeBaseService.updateModifiedInfo(projectId, repoName, parentFullPath, operator, deleteTime)
             publishEvent(buildDeletedEvent(projectId, repoName, fullPath, operator))
         } catch (exception: DuplicateKeyException) {
             logger.warn("Delete node[/$projectId/$repoName$fullPath] by [$operator] error: [${exception.message}]")
@@ -198,10 +201,18 @@ open class NodeDeleteSupport(
         val query = Query(criteria)
         val deleteTime = LocalDateTime.now()
         try {
+            val parentFullPaths = nodeDao.find(query)
+                .map { PathUtils.toFullPath(PathUtils.resolveParent(it.fullPath)) }
+                .distinct()
+                .filterNot { PathUtils.isRoot(it) }
             val updateResult = nodeDao.updateMulti(query, NodeQueryHelper.nodeDeleteUpdate(operator, deleteTime))
             deletedNum = updateResult.modifiedCount
             deletedSize = nodeBaseService.aggregateComputeSize(criteria.and(TNode::deleted).isEqualTo(deleteTime))
             quotaService.decreaseUsedVolume(projectId, repoName, deletedSize)
+            // 批量更新上层目录的修改信息
+            val parentNodeQuery = NodeQueryHelper.nodeQuery(projectId, repoName, parentFullPaths)
+            val parentNodeUpdate = NodeQueryHelper.update(operator)
+            nodeDao.updateMulti(parentNodeQuery, parentNodeUpdate)
         } catch (exception: DuplicateKeyException) {
             logger.warn("Delete node[/$projectId/$repoName] created before $date error: [${exception.message}]")
         }
