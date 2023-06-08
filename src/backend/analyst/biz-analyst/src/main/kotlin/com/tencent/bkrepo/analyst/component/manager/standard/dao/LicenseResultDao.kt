@@ -32,6 +32,8 @@ import com.tencent.bkrepo.analyst.component.manager.standard.model.TLicenseResul
 import com.tencent.bkrepo.analyst.pojo.request.LoadResultArguments
 import com.tencent.bkrepo.analyst.pojo.request.standard.StandardLoadResultArguments
 import com.tencent.bkrepo.common.analysis.pojo.scanner.standard.LicenseResult
+import com.tencent.bkrepo.common.api.pojo.Page
+import com.tencent.bkrepo.common.query.model.PageLimit
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.inValues
 import org.springframework.stereotype.Repository
@@ -39,10 +41,31 @@ import org.springframework.stereotype.Repository
 @Repository
 class LicenseResultDao : ResultItemDao<TLicenseResult>() {
     override fun customizePageBy(criteria: Criteria, arguments: LoadResultArguments): Criteria {
-        require(arguments is StandardLoadResultArguments)
-        if (arguments.licenseIds.isNotEmpty()) {
-            criteria.and(dataKey(LicenseResult::licenseName.name)).inValues(arguments.licenseIds)
+        with(arguments as StandardLoadResultArguments) {
+            val andCriteria = ArrayList<Criteria>()
+
+            if (licenseIds.isNotEmpty()) {
+                andCriteria.add(Criteria(dataKey(LicenseResult::licenseName.name)).inValues(licenseIds))
+            }
+
+            if (andCriteria.isNotEmpty()) {
+                criteria.andOperator(andCriteria)
+            }
+
+            return criteria
         }
-        return criteria
+    }
+
+    override fun toPage(
+        records: List<TLicenseResult>,
+        pageLimit: PageLimit,
+        arguments: LoadResultArguments
+    ): Page<TLicenseResult> {
+        arguments as StandardLoadResultArguments
+        val matchedData = records.filter {
+            val shouldIgnore = arguments.rule!!.shouldIgnore(it.data.licenseName)
+            shouldIgnore && arguments.ignored || !shouldIgnore && !arguments.ignored
+        }
+        return super.toPage(matchedData, pageLimit, arguments)
     }
 }

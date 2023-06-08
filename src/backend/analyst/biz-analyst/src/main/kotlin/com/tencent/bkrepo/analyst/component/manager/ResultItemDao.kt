@@ -59,6 +59,21 @@ abstract class ResultItemDao<T : ResultItem<*>> : ScannerSimpleMongoDao<T>() {
         return Page(pageLimit.pageNumber, pageLimit.pageSize, total, data)
     }
 
+    /**
+     * 将符合条件的数据全部查出后在[toPage]方法中进一步过滤并返回分页结果
+     */
+    fun list(
+        credentialsKey: String?,
+        sha256: String,
+        scanner: String,
+        pageLimit: PageLimit,
+        arguments: LoadResultArguments
+    ): Page<T> {
+        val criteria = customizePageBy(buildCriteria(credentialsKey, sha256, scanner), arguments)
+        val query = customizeQuery(Query(criteria), arguments)
+        return toPage(find(query), pageLimit, arguments)
+    }
+
     protected open fun customizeQuery(query: Query, arguments: LoadResultArguments): Query {
         return query
     }
@@ -67,12 +82,26 @@ abstract class ResultItemDao<T : ResultItem<*>> : ScannerSimpleMongoDao<T>() {
         return criteria
     }
 
-    protected fun dataKey(name: String) = "${ResultItem<*>::data.name}.$name"
+    protected open fun toPage(records: List<T>, pageLimit: PageLimit, arguments: LoadResultArguments): Page<T> {
+        val total = records.size.toLong()
+        val start = (pageLimit.pageNumber - 1) * pageLimit.pageSize
+        val end = minOf(start + pageLimit.pageSize, records.size)
+        val pagedRecords = if (start >= records.size) {
+            emptyList()
+        } else {
+            records.subList(start, end)
+        }
+        return Page(pageLimit.pageNumber, pageLimit.pageSize, total, pagedRecords)
+    }
 
     private fun buildCriteria(credentialsKey: String?, sha256: String, scanner: String): Criteria {
         return Criteria
             .where(ResultItem<*>::credentialsKey.name).isEqualTo(credentialsKey)
             .and(ResultItem<*>::sha256.name).isEqualTo(sha256)
             .and(ResultItem<*>::scanner.name).isEqualTo(scanner)
+    }
+
+    companion object {
+        fun dataKey(name: String) = "${ResultItem<*>::data.name}.$name"
     }
 }

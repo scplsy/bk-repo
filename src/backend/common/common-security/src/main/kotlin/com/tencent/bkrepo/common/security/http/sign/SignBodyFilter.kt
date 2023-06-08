@@ -22,31 +22,29 @@ import javax.servlet.http.HttpServletRequest
  * @param limit 限制缓存body的大小，防止缓存的body过大，导致程序内存不足
  * */
 class SignBodyFilter(private val limit: Long) : Filter {
+
+    private val emptyStringHash = Hashing.sha256().hashBytes(StringPool.EMPTY.toByteArray())
+
     override fun doFilter(request: ServletRequest, response: ServletResponse, chain: FilterChain) {
-        if (request.contentLength > limit) {
-            return chain.doFilter(request, response)
-        }
-
-        // 限制缓存大小
-        val multiReadRequest = MultipleReadHttpRequest(request as HttpServletRequest, limit)
-        val body = ByteArrayOutputStream()
-        multiReadRequest.inputStream.copyTo(body)
-        val sig = request.getParameter(HttpSigner.SIGN)
-        val appId = request.getParameter(HttpSigner.APP_ID)
-        val accessKey = request.getParameter(HttpSigner.ACCESS_KEY)
-        if (sig == null || appId == null || accessKey == null) {
-            chain.doFilter(multiReadRequest, response)
-            return
-        }
-
-        if (request.contentLength > 0 &&
-            !request.contentType.startsWith(MediaType.MULTIPART_FORM_DATA_VALUE)
-        ) {
-            val bodyHash = Hashing.sha256().hashBytes(body.toByteArray())
-            multiReadRequest.setAttribute(HttpSigner.SIGN_BODY, bodyHash)
+        val lengthCondition = request.contentLength in 1..limit
+        val typeCondition = request.contentType?.startsWith(MediaType.MULTIPART_FORM_DATA_VALUE) == false &&
+            request.contentType?.startsWith(MediaType.APPLICATION_OCTET_STREAM_VALUE) == false &&
+            request.contentType?.startsWith(MediaType.APPLICATION_FORM_URLENCODED_VALUE) == false
+        if (lengthCondition && typeCondition) {
+            // 限制缓存大小
+            val multiReadRequest = MultipleReadHttpRequest(request as HttpServletRequest, limit)
+            val body = ByteArrayOutputStream()
+            multiReadRequest.inputStream.copyTo(body)
+            val sig = request.getParameter(HttpSigner.SIGN)
+            val appId = request.getParameter(HttpSigner.APP_ID)
+            val accessKey = request.getParameter(HttpSigner.ACCESS_KEY)
+            if (sig != null && appId != null && accessKey != null) {
+                val bodyHash = Hashing.sha256().hashBytes(body.toByteArray())
+                multiReadRequest.setAttribute(HttpSigner.SIGN_BODY, bodyHash)
+            }
             chain.doFilter(multiReadRequest, response)
         } else {
-            val bodyHash = Hashing.sha256().hashBytes(StringPool.EMPTY.toByteArray())
+            val bodyHash = emptyStringHash
             request.setAttribute(HttpSigner.SIGN_BODY, bodyHash)
             chain.doFilter(request, response)
         }

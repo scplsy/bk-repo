@@ -27,7 +27,7 @@
 
 package com.tencent.bkrepo.replication.controller.service
 
-import com.tencent.bkrepo.auth.api.ServiceUserResource
+import com.tencent.bkrepo.auth.api.ServiceUserClient
 import com.tencent.bkrepo.auth.pojo.enums.PermissionAction
 import com.tencent.bkrepo.common.api.pojo.Response
 import com.tencent.bkrepo.common.security.exception.PermissionException
@@ -47,6 +47,7 @@ import com.tencent.bkrepo.repository.api.ProjectClient
 import com.tencent.bkrepo.repository.api.RepositoryClient
 import com.tencent.bkrepo.repository.pojo.metadata.MetadataDeleteRequest
 import com.tencent.bkrepo.repository.pojo.metadata.MetadataSaveRequest
+import com.tencent.bkrepo.repository.pojo.node.NodeDeleteResult
 import com.tencent.bkrepo.repository.pojo.node.NodeDetail
 import com.tencent.bkrepo.repository.pojo.node.service.NodeCreateRequest
 import com.tencent.bkrepo.repository.pojo.node.service.NodeDeleteRequest
@@ -74,13 +75,14 @@ class ArtifactReplicaController(
     private val nodeClient: NodeClient,
     private val packageClient: PackageClient,
     private val metadataClient: MetadataClient,
-    private val userResource: ServiceUserResource,
+    private val userResource: ServiceUserClient,
     private val permissionManager: PermissionManager
 ) : ArtifactReplicaClient {
 
     @Value("\${spring.application.version:$DEFAULT_VERSION}")
     private var version: String = DEFAULT_VERSION
 
+    @Principal(type = PrincipalType.GENERAL)
     override fun ping(token: String) = ResponseBuilder.success()
 
     override fun version() = ResponseBuilder.success(version)
@@ -123,7 +125,7 @@ class ArtifactReplicaController(
         return nodeClient.moveNode(request)
     }
 
-    override fun replicaNodeDeleteRequest(request: NodeDeleteRequest): Response<Void> {
+    override fun replicaNodeDeleteRequest(request: NodeDeleteRequest): Response<NodeDeleteResult> {
         return nodeClient.deleteNode(request)
     }
 
