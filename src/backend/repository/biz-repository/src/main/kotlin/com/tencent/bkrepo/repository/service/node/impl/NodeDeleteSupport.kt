@@ -131,6 +131,7 @@ open class NodeDeleteSupport(
             logger.warn("Delete node[/$projectId/$repoName$fullPath] by [$operator] error: [${exception.message}]")
             NodeDeleteResult(0L, 0L, LocalDateTime.now())
         }
+        if (result.deletedSize > 0) publishEvent(buildDeletedEvent(projectId, repoName, fullPath, operator))
         logger.info(
             "Delete node[/$projectId/$repoName$fullPath] by [$operator] success." +
                 "${result.deletedNumber} nodes have been deleted. The size is ${HumanReadable.size(result.deletedSize)}"
@@ -163,6 +164,7 @@ open class NodeDeleteSupport(
             logger.warn("Delete node[/$projectId/$repoName$fullPaths] by [$operator] error: [${exception.message}]")
             NodeDeleteResult(0L, 0L, LocalDateTime.now())
         }
+        if (result.deletedSize > 0) publishEvent(buildDeletedEvent(projectId, repoName, fullPaths, operator))
         logger.info(
             "Delete node[/$projectId/$repoName$fullPaths] by [$operator] success." +
                 "${result.deletedNumber} nodes have been deleted. The size is ${HumanReadable.size(result.deletedSize)}"
@@ -215,12 +217,10 @@ open class NodeDeleteSupport(
                 val parentNodeQuery = NodeQueryHelper.nodeQuery(projectId, repoName, parentFullPaths)
                 val parentNodeUpdate = NodeQueryHelper.update(operator)
                 nodeDao.updateMulti(parentNodeQuery, parentNodeUpdate)
-                publishEvent(buildDeletedEvent(projectId, repoName, fullPaths, operator))
             } else {
                 // 请求删除单个节点时,仅更新父目录的修改信息
                 val parentFullPath = PathUtils.toFullPath(PathUtils.resolveParent(rootNodeFullPath))
                 nodeBaseService.updateModifiedInfo(projectId, repoName, parentFullPath, operator, deleteTime)
-                publishEvent(buildDeletedEvent(projectId, repoName, rootNodeFullPath, operator))
             }
         } catch (ignore: DuplicateKeyException) {
             logger.warn("Failed to update modified info of node in [$projectId/$repoName], ${ignore.message}")
