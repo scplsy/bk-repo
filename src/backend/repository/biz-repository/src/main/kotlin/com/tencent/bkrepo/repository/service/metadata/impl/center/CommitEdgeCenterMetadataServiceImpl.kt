@@ -30,13 +30,16 @@ package com.tencent.bkrepo.repository.service.metadata.impl.center
 import com.tencent.bkrepo.common.service.cluster.CommitEdgeCenterCondition
 import com.tencent.bkrepo.repository.dao.NodeDao
 import com.tencent.bkrepo.repository.service.metadata.impl.MetadataServiceImpl
+import com.tencent.bkrepo.repository.service.node.impl.NodeBaseService
 import org.springframework.context.annotation.Conditional
 import org.springframework.stereotype.Service
 
 @Service
 @Conditional(CommitEdgeCenterCondition::class)
 class CommitEdgeCenterMetadataServiceImpl(
-    nodeDao: NodeDao
+    nodeDao: NodeDao,
+    nodeBaseService: NodeBaseService
 ) : MetadataServiceImpl(
-    nodeDao
+    nodeDao,
+    nodeBaseService
 )

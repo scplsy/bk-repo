@@ -338,7 +338,13 @@ abstract class NodeBaseService(
     /**
      * 递归创建目录
      */
-    fun mkdirs(projectId: String, repoName: String, path: String, createdBy: String): List<TNode> {
+    fun mkdirs(
+        projectId: String,
+        repoName: String,
+        path: String,
+        createdBy: String,
+        currentTime: LocalDateTime = LocalDateTime.now()
+    ): List<TNode> {
         val nodes = mutableListOf<TNode>()
         // 格式化
         val fullPath = PathUtils.toFullPath(path)
@@ -349,7 +355,7 @@ abstract class NodeBaseService(
         if (creatingNode == null) {
             val parentPath = PathUtils.resolveParent(fullPath)
             val name = PathUtils.resolveName(fullPath)
-            val creates = mkdirs(projectId, repoName, parentPath, createdBy)
+            val creates = mkdirs(projectId, repoName, parentPath, createdBy, currentTime)
             val node = TNode(
                 folder = true,
                 path = parentPath,
@@ -361,15 +367,33 @@ abstract class NodeBaseService(
                 projectId = projectId,
                 repoName = repoName,
                 createdBy = createdBy,
-                createdDate = LocalDateTime.now(),
+                createdDate = currentTime,
                 lastModifiedBy = createdBy,
-                lastModifiedDate = LocalDateTime.now()
+                lastModifiedDate = currentTime
             )
             doCreate(node)
             nodes.addAll(creates)
             nodes.add(node)
+        } else {
+            // 更新已存在的最近父目录的最后修改信息
+            updateModifiedInfo(projectId, repoName, fullPath, createdBy, currentTime)
         }
         return nodes
+    }
+
+    fun updateModifiedInfo(
+        projectId: String,
+        repoName: String,
+        fullPath: String,
+        modifiedBy: String,
+        modifiedDate: LocalDateTime = LocalDateTime.now()
+    ) {
+        if (PathUtils.isRoot(fullPath)) {
+            return
+        }
+        val query = NodeQueryHelper.nodeQuery(projectId, repoName, fullPath)
+        val update = NodeQueryHelper.update(modifiedBy, modifiedDate)
+        nodeDao.updateFirst(query, update)
     }
 
     open fun checkConflictAndQuota(createRequest: NodeCreateRequest, fullPath: String): LocalDateTime? {
