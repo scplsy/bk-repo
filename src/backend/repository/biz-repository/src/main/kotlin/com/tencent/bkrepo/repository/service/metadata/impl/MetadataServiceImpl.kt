@@ -67,9 +67,10 @@ import java.time.LocalDateTime
 @Service
 @Conditional(DefaultCondition::class)
 class MetadataServiceImpl(
-    private val nodeDao: NodeDao,
     private val nodeBaseService: NodeBaseService
 ) : MetadataService {
+
+    private val nodeDao: NodeDao = nodeBaseService.nodeDao
 
     override fun listMetadata(projectId: String, repoName: String, fullPath: String): Map<String, Any> {
         return MetadataUtils.toMap(nodeDao.findOne(NodeQueryHelper.nodeQuery(projectId, repoName, fullPath))?.metadata)
