@@ -193,17 +193,15 @@ open class NodeDeleteSupport(
             }
             // 获取被删除节点的父目录并更新修改信息
             val parentFullPaths = if (fullPaths?.size == 1) {
+                nodeBaseService.cancelUpdateModifiedInfo(projectId, repoName, fullPaths)
                 listOf(PathUtils.toFullPath(PathUtils.resolveParent(fullPaths[0])))
             } else {
                 existFullPaths?.map { PathUtils.toFullPath(PathUtils.resolveParent(it)) }
                     ?.distinct()?.filterNot { PathUtils.isRoot(it) }
+                    ?.also { nodeBaseService.cancelUpdateModifiedInfo(projectId, repoName, it) }
             }
-            if (parentFullPaths?.size == 1) {
-                nodeBaseService.updateModifiedInfo(projectId, repoName, parentFullPaths[0], operator, deleteTime)
-            } else if (parentFullPaths != null && parentFullPaths.size > 1) {
-                val parentNodeQuery = NodeQueryHelper.nodeQuery(projectId, repoName, parentFullPaths)
-                val parentNodeUpdate = NodeQueryHelper.update(operator)
-                nodeDao.updateMulti(parentNodeQuery, parentNodeUpdate)
+            parentFullPaths?.forEach {
+                nodeBaseService.updateModifiedInfo(projectId, repoName, it, operator, deleteTime)
             }
             deletedSize = nodeBaseService.aggregateComputeSize(criteria.and(TNode::deleted).isEqualTo(deleteTime))
             quotaService.decreaseUsedVolume(projectId, repoName, deletedSize)
