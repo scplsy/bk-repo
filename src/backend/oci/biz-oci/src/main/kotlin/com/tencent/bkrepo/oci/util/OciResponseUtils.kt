@@ -50,6 +50,7 @@ import com.tencent.bkrepo.oci.constant.HTTP_PROTOCOL_HTTPS
 import com.tencent.bkrepo.oci.constant.OCI_API_PREFIX
 import com.tencent.bkrepo.oci.pojo.digest.OciDigest
 import com.tencent.bkrepo.oci.pojo.response.ResponseProperty
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpHeaders
 import java.io.UnsupportedEncodingException
 import java.net.URI
@@ -63,6 +64,7 @@ import javax.ws.rs.core.UriBuilder
  */
 object OciResponseUtils {
     private const val LOCAL_HOST = "localhost"
+    private val logger = LoggerFactory.getLogger(OciResponseUtils::class.java)
 
     fun getResponseURI(request: HttpServletRequest, enableHttps: Boolean, domain: String): URI {
         val hostHeaders = request.getHeaders(HOST)
@@ -85,11 +87,16 @@ object OciResponseUtils {
      * prefix or https prefix
      */
     private fun getProtocol(request: HttpServletRequest, enableHttps: Boolean): String {
+        logger.info("==========Headers: ${request.headerNames.toList()}==================")
+        logger.info("================X-Forwarded-Proto: ${request.getHeaders(HTTP_FORWARDED_PROTO)}================")
         if (enableHttps) return HTTP_PROTOCOL_HTTPS
+        logger.info("=======enablehttps false=========")
         val protocolHeaders = request.getHeaders(HTTP_FORWARDED_PROTO) ?: return HTTP_PROTOCOL_HTTP
+        logger.info("==============Get proto header=================")
         return if (protocolHeaders.hasMoreElements()) {
             protocolHeaders.iterator().next() as String
         } else {
+            logger.info("=============no elements. return https===================")
             HTTP_PROTOCOL_HTTPS
         }
     }
