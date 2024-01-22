@@ -88,7 +88,7 @@ object OciResponseUtils {
      */
     private fun getProtocol(request: HttpServletRequest, enableHttps: Boolean): String {
         logger.info("==========Headers: ${request.headerNames.toList()}==================")
-        logger.info("================X-Forwarded-Proto: ${request.getHeaders(HTTP_FORWARDED_PROTO)}================")
+        logger.info("================X-Forwarded-Proto: ${request.getHeaders(HTTP_FORWARDED_PROTO).toList()}================")
         if (enableHttps) return HTTP_PROTOCOL_HTTPS
         logger.info("=======enablehttps false=========")
         val protocolHeaders = request.getHeaders(HTTP_FORWARDED_PROTO) ?: return HTTP_PROTOCOL_HTTP
