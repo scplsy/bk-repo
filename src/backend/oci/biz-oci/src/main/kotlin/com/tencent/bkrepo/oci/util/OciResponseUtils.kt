@@ -88,17 +88,10 @@ object OciResponseUtils {
      */
     private fun getProtocol(request: HttpServletRequest, enableHttps: Boolean): String {
         logger.info("==========Headers: ${request.headerNames.toList()}==================")
-        logger.info("================X-Forwarded-Proto: ${request.getHeaders(HTTP_FORWARDED_PROTO).toList()}================")
+        logger.info("================X-Forwarded-Proto: ${request.getHeader(HTTP_FORWARDED_PROTO)}================")
         if (enableHttps) return HTTP_PROTOCOL_HTTPS
         logger.info("=======enablehttps false=========")
-        val protocolHeaders = request.getHeaders(HTTP_FORWARDED_PROTO) ?: return HTTP_PROTOCOL_HTTP
-        logger.info("==============Get proto header=================")
-        return if (protocolHeaders.hasMoreElements()) {
-            protocolHeaders.iterator().next() as String
-        } else {
-            logger.info("=============no elements. return https===================")
-            HTTP_PROTOCOL_HTTPS
-        }
+        return request.getHeader(HTTP_FORWARDED_PROTO) ?: HTTP_PROTOCOL_HTTP
     }
 
     private fun getResponseLocationURI(path: String, domain: String): String {
